@@ -119,3 +119,12 @@ def test_stats_csv_import_and_what_if(client):
     assert r == {"created": 1, "unmatched": ["No Body"]}
     r = client.post("/projections/what-if", json={"player_type": "pitcher", "age": 18, "current_level": "HS", "tracking": {"fb_velo_avg": 91}, "years": 4, "sims": 300})
     assert r.status_code == 200 and len(r.json()["years"]) == 5
+
+
+def test_mobile_app_is_served(client):
+    r = client.get("/", follow_redirects=False)
+    assert r.status_code in (302, 307) and r.headers["location"] == "/app/"
+    page = client.get("/app/")
+    assert page.status_code == 200 and "app.js" in page.text
+    assert client.get("/app/app.js").status_code == 200
+    assert client.get("/app/sw.js").status_code == 200

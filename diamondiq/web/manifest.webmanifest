@@ -1,0 +1,10 @@
+{
+  "name": "DiamondIQ",
+  "short_name": "DiamondIQ",
+  "start_url": "/app/",
+  "scope": "/app/",
+  "display": "standalone",
+  "background_color": "#f9f9f7",
+  "theme_color": "#1c5cab",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

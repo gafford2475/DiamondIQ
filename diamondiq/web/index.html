@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1c5cab">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>DiamondIQ</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-btn" id="back" aria-label="Back" hidden>&#8249;</button>
+    <h1 id="title">DiamondIQ</h1>
+    <span class="sync" id="sync" hidden></span>
+  </header>
+  <main id="view" tabindex="-1"></main>
+  <nav class="tabbar" aria-label="Main">
+    <a href="#/players" data-tab="players"><span aria-hidden="true">&#9776;</span>Players</a>
+    <a href="#/games" data-tab="games"><span aria-hidden="true">&#9918;</span>Games</a>
+    <a href="#/chart" data-tab="chart"><span aria-hidden="true">&#9673;</span>Chart</a>
+  </nav>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

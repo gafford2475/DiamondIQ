@@ -260,7 +260,8 @@ def narrative(r: dict[str, Any]) -> str:
     last = None
     for y in yrs:
         if y["most_likely_level"] != last:
-            path.append(f"{y['most_likely_level']} (age {y['age']:.1f})")
+            code = y["most_likely_level"]
+            path.append(f"{get_level(code).name if code != 'OUT' else 'out of organized baseball'} (age {y['age']:.1f})")
             last = y["most_likely_level"]
     mlb = o["probability_reach_pro_level"].get("MLB", 0)
     top_tiers = ", ".join(f"{t['tier']} {t['probability']:.0%}" for t in sorted(o["tier_probabilities"], key=lambda t: -t["probability"])[:3])

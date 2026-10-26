@@ -14,6 +14,23 @@ Player evaluation, biomechanics, scouting, tracking and projection for every lev
 | **Integrations** | TrackMan (and TrackMan-format exports such as Yakkertech/FlightScope), Rapsodo pitching & hitting, HitTrax, Hawk-Eye / Statcast (Savant CSV or JSON), Blast Motion / bat sensors, and a **generic column-mapping adapter** with unit conversion for anything else (Pocket Radar, Stalker, PitchLogic, in-house tools). Formats are auto-detected. Rows are matched to players by external ID, then by name, and unmatched names are reported so you can assign them. |
 | **Projection** | A Monte Carlo career model (2,000 sims by default) combines all of the above. Each year it gives: talent percentiles, the most likely level and the full level distribution, and projected stat lines (p10/median/p90) **at every level**. It also gives outcome-tier probabilities (from "small college" up to "All-Star"), the chance of reaching each level, ceiling, floor and risk, and a plain-English summary. Every estimate shows which evidence drove it and how much. A what-if endpoint projects hypothetical players. |
 
+## Mobile app
+
+Open **http://<server>:8000/app/** on a phone (or `/`, which redirects there). It's a mobile-first web app served by the API itself, with nothing to install. "Add to Home Screen" makes it open full-screen like a native app.
+
+- **Players:** search and filter by level, type and watchlist. Each player has tabs:
+  - **Overview:** bio and a snapshot
+  - **Scouting:** consensus grades and a 20-80 report form
+  - **Stats:** season lines
+  - **Tracking:** device data and file import
+  - **Mechanics:** record or upload a video, read prioritized feedback with drills, compare two analyses
+  - **Projection:** talent-by-age chart with range band, chance to reach each level, outcome mix, projected stat lines at every level by year, and where the estimate comes from
+- **Games & live charting:** big tap targets for pitch type, velocity, location (catcher's-view zone grid) and result.
+  - The count, outs and innings advance automatically; strikeouts, walks and HBP are recorded for you.
+  - A ball in play opens a result sheet.
+  - Undo, scouting notes, and a running pitcher line (pitch count, strike %, velo by pitch type) are on the same screen.
+- **Works with bad ballpark signal:** pitches are queued on the phone and sync automatically when the connection returns. The badge in the header shows anything still waiting. The app shell is cached so the charting screen opens offline.
+
 ## Quick start
 
 ```bash
