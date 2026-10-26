@@ -1,0 +1,7 @@
+"Player ID:","57821"
+"Player Name:","Marco Reyes"
+
+"No","Date","Pitch Type","Is Strike","Strike Zone Side","Strike Zone Height","Velocity","Total Spin","True Spin (release)","Spin Efficiency (release)","Spin Direction","Spin Confidence","VB (trajectory)","HB (trajectory)","SSW VB","SSW HB","VB (spin)","HB (spin)","Horizontal Angle","Release Angle","Release Height","Release Side","Release Extension (ft)","Gyro Degree (deg)"
+"1","2026-01-15 16:10:03","Fastball","YES","-3.2","30.1","91.8","2290","2201","96.1","1:15","0.98","-14.1","-9.2","2.1","0.4","17.3","-8.8","-1.2","-1.5","5.85","-1.77","6.3","15"
+"2","2026-01-15 16:10:41","Slider","NO","10.4","18.6","83.5","2510","1180","47.0","9:00","0.95","-38.9","5.1","","","2.0","4.4","-0.8","-2.9","5.80","-1.81","6.1","62"
+"3","2026-01-15 16:11:20","ChangeUp","YES","-5.0","24.2","84.2","1690","1520","90.0","1:50","0.97","-28.0","-13.0","","","9.1","-12.8","-1.6","-2.4","5.79","-1.84","6.2","25"
