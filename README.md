@@ -14,9 +14,23 @@ Player evaluation, biomechanics, scouting, tracking and projection for every lev
 | **Integrations** | TrackMan (and TrackMan-format exports such as Yakkertech/FlightScope), Rapsodo pitching & hitting, HitTrax, Hawk-Eye / Statcast (Savant CSV or JSON), Blast Motion / bat sensors, and a **generic column-mapping adapter** with unit conversion for anything else (Pocket Radar, Stalker, PitchLogic, in-house tools). Formats are auto-detected. Rows are matched to players by external ID, then by name, and unmatched names are reported so you can assign them. |
 | **Projection** | A Monte Carlo career model (2,000 sims by default) combines all of the above. Each year it gives: talent percentiles, the most likely level and the full level distribution, and projected stat lines (p10/median/p90) **at every level**. It also gives outcome-tier probabilities (from "small college" up to "All-Star"), the chance of reaching each level, ceiling, floor and risk, and a plain-English summary. Every estimate shows which evidence drove it and how much. A what-if endpoint projects hypothetical players. |
 
-## Mobile app
+## The app (phone and laptop)
 
-Open **http://<server>:8000/app/** on a phone (or `/`, which redirects there). It's a mobile-first web app served by the API itself, with nothing to install. "Add to Home Screen" makes it open full-screen like a native app.
+**To host it or run it on your laptop, see [DEPLOY.md](DEPLOY.md).**
+
+Open the server's address on a phone or laptop. It's a web app served by the API itself, with nothing to install. Phones get a touch layout and "Add to Home Screen" installs it like a native app. Laptops get a sidebar layout and keyboard charting:
+
+| Key | Action |
+|---|---|
+| 1–8 | Pitch type |
+| V | Jump to velocity |
+| B / C / S / F | Ball, called strike, swinging strike, foul |
+| X | In play |
+| H | Hit by pitch |
+| Z | Undo |
+| N | Note |
+
+Everyone signs in. **Admins** manage users, **scouts** add and edit, and **viewers** are read-only.
 
 - **Players:** search and filter by level, type and watchlist. Each player has tabs:
   - **Overview:** bio and a snapshot
@@ -38,7 +52,7 @@ pip install -e ".[video,dev]"
 python -m diamondiq.biomechanics.pose --download     # MediaPipe pose model (~30 MB)
 uvicorn diamondiq.api.main:app --reload              # interactive docs at http://127.0.0.1:8000/docs
 python scripts/demo.py                               # seeds a demo DB and prints analyses + projections
-pytest                                               # 29 tests
+pytest                                               # 35 tests
 ```
 
 On a headless Linux server, MediaPipe also needs `libegl1 libgles2 libgl1` (apt).

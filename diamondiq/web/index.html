@@ -20,9 +20,12 @@
   </header>
   <main id="view" tabindex="-1"></main>
   <nav class="tabbar" aria-label="Main">
+    <div class="brand desktop-only"><img src="icon.svg" alt="" width="28" height="28"> DiamondIQ</div>
     <a href="#/players" data-tab="players"><span aria-hidden="true">&#9776;</span>Players</a>
     <a href="#/games" data-tab="games"><span aria-hidden="true">&#9918;</span>Games</a>
-    <a href="#/chart" data-tab="chart"><span aria-hidden="true">&#9673;</span>Chart</a>
+    <a href="#/chart" data-tab="chart" class="write"><span aria-hidden="true">&#9673;</span>Chart</a>
+    <a href="#/account" data-tab="account"><span aria-hidden="true">&#9787;</span>Account</a>
+    <div class="who desktop-only small muted" id="account-name"></div>
   </nav>
   <div id="toast" role="status" aria-live="polite"></div>
   <script src="app.js"></script>

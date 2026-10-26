@@ -1,6 +1,6 @@
 // Caches the app shell so the charting screen opens with no signal.
 // API calls are never cached here; pitches charted offline are queued by app.js.
-const CACHE = "diamondiq-shell-v1";
+const CACHE = "diamondiq-shell-v2";
 const SHELL = ["./", "index.html", "app.css", "app.js", "manifest.webmanifest", "icon.svg"];
 
 self.addEventListener("install", (e) => {

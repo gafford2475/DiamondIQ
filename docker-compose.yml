@@ -1,0 +1,17 @@
+# Run DiamondIQ on your own computer:   docker compose up
+# Then open http://localhost:8000 on this computer, or http://<this-computer's-IP>:8000
+# from a phone on the same Wi-Fi. The first-run setup code is printed in this terminal.
+services:
+  diamondiq:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - diamondiq-data:/data
+    environment:
+      # Plain http on a home network, so cookies can't be marked Secure here.
+      DIAMONDIQ_SECURE_COOKIES: "0"
+    restart: unless-stopped
+
+volumes:
+  diamondiq-data:

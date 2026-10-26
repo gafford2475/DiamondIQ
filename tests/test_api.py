@@ -4,13 +4,20 @@ import pytest
 from conftest import SAMPLES
 from fastapi.testclient import TestClient
 
+from diamondiq import models as m
 from diamondiq.api.main import app
+from diamondiq.auth import create_user
+from diamondiq.db import SessionLocal
 from diamondiq.biomechanics.synthetic import synthetic_pitch
 
 
 @pytest.fixture(scope="module")
 def client():
     with TestClient(app) as c:
+        with SessionLocal() as session:
+            if not session.query(m.User).filter_by(email="scout@example.com").first():
+                create_user(session, "scout@example.com", "Test Scout", "correct horse battery", role="scout")
+        assert c.post("/auth/login", json={"email": "scout@example.com", "password": "correct horse battery"}).status_code == 200
         yield c
 
 

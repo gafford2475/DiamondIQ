@@ -45,7 +45,9 @@ function toast(msg, ms = 2600) {
   toast._t = setTimeout(() => t.classList.remove("show"), ms);
 }
 
-class ApiError extends Error {}
+class ApiError extends Error {
+  constructor(message, status) { super(message); this.status = status; }
+}
 
 async function api(path, opts = {}) {
   const init = { method: opts.method || "GET", headers: {} };
@@ -62,7 +64,8 @@ async function api(path, opts = {}) {
   if (!res.ok) {
     const d = data && data.detail;
     const msg = Array.isArray(d) ? d.map((e) => `${(e.loc || []).slice(-1)[0]}: ${e.msg}`).join("; ") : d || res.statusText;
-    throw new ApiError(msg);
+    if (res.status === 401 && !path.startsWith("/auth/")) signInRequired();
+    throw new ApiError(msg, res.status);
   }
   return data;
 }
@@ -168,7 +171,7 @@ const queue = {
         try {
           await api(`/games/${item.gameId}/pitches`, { method: "POST", json: item.body });
         } catch (e) {
-          if (!(e instanceof ApiError)) break; // offline: keep the queue and retry later
+          if (!(e instanceof ApiError) || e.status === 401) break; // offline or signed out: keep the queue and retry later
           toast(`A queued pitch was rejected: ${e.message}`);
         }
         q = this.items().filter((x) => x.qid !== item.qid);
@@ -201,6 +204,7 @@ const routes = [
   [/^#\/games\/(\d+)\/chart$/, (id) => chartView(+id)],
   [/^#\/games\/(\d+)$/, (id) => gameSummaryView(+id)],
   [/^#\/games$/, () => gamesView()],
+  [/^#\/account$/, () => accountView()],
   [/^#\/chart$/, () => {
     const g = store.get("lastGame", null);
     location.replace(g ? `#/games/${g}/chart` : "#/games");
@@ -208,6 +212,7 @@ const routes = [
 ];
 
 async function route() {
+  if (!ME) return showAuth();
   const hash = location.hash || "#/players";
   const tab = hash.endsWith("/chart") ? "chart" : hash.split("/")[1];
   document.querySelectorAll(".tabbar a").forEach((a) => a.classList.toggle("active", a.dataset.tab === tab));
@@ -237,7 +242,7 @@ async function playersView() {
   setTitle("Players");
   await levels();
   const state = store.get("playerFilters", { q: "", type: "", level: "", watchlist: "" });
-  const results = h("ul", { class: "list" });
+  const results = h("ul", { class: "list cards" });
   let watchlists = [];
   try { watchlists = await api("/watchlists"); } catch { /* offline */ }
 
@@ -287,7 +292,7 @@ async function playersView() {
     h("div", { class: "row", style: "margin-top:8px" }, levelSel, wlSel),
     h("div", { style: "margin-top:8px" }, typeChips),
     results,
-    h("a", { class: "btn primary fab", href: "#/players/new" }, "+ Add player")
+    h("a", { class: "btn primary fab write", href: "#/players/new" }, "+ Add player")
   );
   load();
 }
@@ -397,7 +402,7 @@ async function overviewTab(el, prof) {
       h("div", { class: "grid2" }, facts.map(([k, v]) => h("div", {}, h("div", { class: "small muted" }, k), h("div", {}, v)))),
       p.notes ? h("p", { class: "ink2" }, p.notes) : null,
       h("div", { class: "row", style: "margin-top:12px" },
-        h("a", { class: "btn", href: `#/players/${p.id}/edit` }, "Edit"), wlSel)),
+        h("a", { class: "btn write", href: `#/players/${p.id}/edit` }, "Edit"), h("div", { class: "write" }, wlSel))),
     h("h2", {}, "Projection"),
     proj
       ? h("div", { class: "card" },
@@ -476,7 +481,7 @@ async function scoutingTab(el, prof) {
           c.ofp ? h("tfoot", {}, h("tr", {}, h("td", {}, h("strong", {}, "OFP")), h("td", {}), h("td", {}, h("strong", {}, Math.round(c.ofp))), h("td", {}))) : null)));
   }
   fill(el, 
-    h("button", { class: "btn primary block", style: "margin-top:8px", onclick: () => reportForm(p) }, "+ New scouting report"),
+    h("button", { class: "btn primary block write", style: "margin-top:8px", onclick: () => reportForm(p) }, "+ New scouting report"),
     ...sections,
     h("h2", {}, "Reports"),
     reports.length
@@ -565,7 +570,7 @@ async function statsTab(el, prof) {
   const pit = lines.filter((l) => l.kind === "pitching");
   const label = (l) => h("td", {}, h("div", {}, `${l.season} ${short(l.level)}`), h("div", { class: "small muted" }, l.team || ""));
   fill(el, 
-    h("button", { class: "btn primary block", style: "margin-top:8px", onclick: () => statForm(p) }, "+ Add season"),
+    h("button", { class: "btn primary block write", style: "margin-top:8px", onclick: () => statForm(p) }, "+ Add season"),
     hit.length ? [h("h2", {}, "Hitting"), h("div", { class: "card table-wrap" }, h("table", {},
       h("thead", {}, h("tr", {}, ["Season", "PA", "AVG", "OBP", "SLG", "ISO", "K%", "BB%", "wOBA"].map((x) => h("th", {}, x)))),
       h("tbody", {}, hit.map((l) => h("tr", {}, label(l), h("td", {}, l.rates.pa),
@@ -663,9 +668,10 @@ async function trackingTab(el, prof) {
         tile(fmt.n(hi.ev_avg), "EV avg"), tile(fmt.n(hi.ev_90th), "EV 90th pct"), tile(fmt.n(hi.ev_max), "EV max"),
         tile(fmt.pct(hi.hard_hit_pct, 0), "Hard-hit %"), tile(fmt.pct(hi.barrel_pct, 0), "Barrel %"), tile(fmt.n(hi.la_avg), "Launch angle"),
         tile(fmt.pct(hi.sweet_spot_pct, 0), "Sweet spot %"), tile(fmt.n(hi.bat_speed_avg), "Bat speed"), tile(fmt.n(hi.attack_angle_avg), "Attack angle"))] : null,
-    h("h2", {}, "Import device data"),
-    h("p", { class: "small ink2" }, "TrackMan, Rapsodo, HitTrax, Hawk-Eye/Statcast, Blast and TrackMan-format exports."),
-    h("div", { class: "card" }, form)
+    h("div", { class: "write" },
+      h("h2", {}, "Import device data"),
+      h("p", { class: "small ink2" }, "TrackMan, Rapsodo, HitTrax, Hawk-Eye/Statcast, Blast and TrackMan-format exports."),
+      h("div", { class: "card" }, form))
   );
 }
 
@@ -698,7 +704,7 @@ async function mechanicsTab(el, prof) {
   });
 
   fill(el, 
-    h("details", { class: "card", open: list.length ? null : true }, h("summary", {}, "Upload a video"), form),
+    h("details", { class: "card write", open: list.length ? null : true }, h("summary", {}, "Upload a video"), form),
     h("h2", {}, "Analyses"),
     list.length
       ? h("ul", { class: "list" }, list.map((a) => h("li", {}, h("button", { class: "list-item", style: "width:100%;text-align:left;cursor:pointer", onclick: () => analysisDetail(a.id, list, p) },
@@ -786,7 +792,7 @@ async function projectionTab(el, prof) {
     } catch (e) { toast(e.message, 5000); }
   } }, hist.length ? "Re-run projection" : "Run projection");
   fill(el, 
-    h("div", { class: "card stack" }, h("div", { class: "row" }, yearsSel, pathSel, typeSel), run,
+    h("div", { class: "card stack write" }, h("div", { class: "row" }, yearsSel, pathSel, typeSel), run,
       h("p", { class: "small muted", style: "margin:0" }, "Uses every stat line, scouting report, tracking session and mechanics analysis on file.")),
     out);
   if (hist.length) renderProjection(out, await api(`/projections/${hist[hist.length - 1].id}`));
@@ -941,13 +947,13 @@ async function gamesView() {
   try { games = await api("/games"); store.set("games", games); } catch { games = store.get("games", []); toast("Offline: showing saved games"); }
   fill($view, 
     games.length
-      ? h("ul", { class: "list" }, games.map((g) => h("li", {}, h("div", { class: "list-item" },
+      ? h("ul", { class: "list cards" }, games.map((g) => h("li", {}, h("div", { class: "list-item" },
           h("a", { class: "grow", href: `#/games/${g.id}`, style: "color:inherit;text-decoration:none" },
             h("div", { class: "name" }, `${g.away_team} @ ${g.home_team}`),
             h("div", { class: "small ink2" }, [g.game_date, g.level && short(g.level), g.location].filter(Boolean).join(" · "))),
-          h("a", { class: "btn primary", style: "flex:none;min-height:40px", href: `#/games/${g.id}/chart` }, "Chart")))))
+          h("a", { class: "btn primary write", style: "flex:none;min-height:40px", href: `#/games/${g.id}/chart` }, "Chart")))))
       : h("p", { class: "muted" }, "No games yet. Create one to start charting pitches."),
-    h("a", { class: "btn primary fab", href: "#/games/new" }, "+ New game"));
+    h("a", { class: "btn primary fab write", href: "#/games/new" }, "+ New game"));
 }
 
 async function gameForm() {
@@ -995,7 +1001,7 @@ async function gameSummaryView(id) {
     h("td", {}, fmt.pct(b.whiff_pct, 0)), h("td", {}, fmt.pct(b.chase_pct, 0)), h("td", {}, fmt.n(b.ev_max)), h("td", { style: "text-align:left" }, b.outcomes.join(", "))));
   fill($view, 
     h("p", { class: "ink2" }, `${sm.date} · ${sm.total_pitches} pitches charted`),
-    h("a", { class: "btn primary block", href: `#/games/${id}/chart` }, "Continue charting"),
+    h("a", { class: "btn primary block write", href: `#/games/${id}/chart` }, "Continue charting"),
     h("h2", {}, "Pitchers"), pitcherCards.length ? pitcherCards : h("p", { class: "muted" }, "No pitches yet."),
     batterRows.length ? [h("h2", {}, "Hitters"), h("div", { class: "card table-wrap" }, h("table", {},
       h("thead", {}, h("tr", {}, ["Hitter", "PA", "Pitches", "Whiff", "Chase", "Max EV", "Results"].map((t) => h("th", {}, t)))), h("tbody", {}, batterRows)))] : null,
@@ -1055,6 +1061,11 @@ function impliedOutcome(st, result) {
 }
 
 async function chartView(gameId) {
+  if (ME.role === "viewer") {
+    setTitle("Chart");
+    fill($view, h("p", { class: "ink2" }, "Your account is read-only, so it can't chart pitches. Game summaries are under Games."));
+    return;
+  }
   store.set("lastGame", gameId);
   let game, serverPitches, people;
   try {
@@ -1204,6 +1215,7 @@ async function chartView(gameId) {
     delete st.halfChanged;
     persist();
     resetDraft();
+    if (document.activeElement === veloIn) veloIn.blur(); // next number key picks the pitch type again
     redraw();
     if (navigator.vibrate) navigator.vibrate(15);
     await queue.flush();
@@ -1304,27 +1316,177 @@ async function chartView(gameId) {
     });
   }
 
+  // Keyboard charting for laptops: number keys pick the pitch, letters record the result.
+  const KEYS = { b: "ball", c: "called_strike", s: "swinging_strike", f: "foul", x: "in_play", h: "hit_by_pitch" };
+  const onKey = (e) => {
+    if (location.hash !== `#/games/${gameId}/chart`) { document.removeEventListener("keydown", onKey); return; }
+    if (e.metaKey || e.altKey || document.querySelector(".sheet-backdrop")) return;
+    const typing = ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName) && e.target !== veloIn;
+    const k = e.key.toLowerCase();
+    if (e.ctrlKey) { if (k === "z" && !typing) { e.preventDefault(); undo(); } return; }
+    if (typing) return;
+    // Digits typed into the velocity box are velocity, not pitch-type shortcuts.
+    if (/^[1-8]$/.test(k) && e.target !== veloIn) { e.preventDefault(); ptypeBox.querySelectorAll("button")[+k - 1].click(); veloIn.focus(); veloIn.select(); }
+    else if (KEYS[k]) { e.preventDefault(); record(KEYS[k]); }
+    else if (k === "z") { e.preventDefault(); undo(); }
+    else if (k === "n") { e.preventDefault(); addNote(); }
+    else if (k === "v") { e.preventDefault(); veloIn.focus(); veloIn.select(); }
+  };
+  document.addEventListener("keydown", onKey);
+  const kbd = (key, label) => h("span", {}, h("kbd", {}, key), " ", label);
+
   fill($view, dl,
-    situation,
-    h("div", { class: "row", style: "margin-top:10px" }, pitcherIn),
-    h("div", { class: "row", style: "margin-top:8px" }, batterIn, sideSel),
-    h("h3", {}, "Pitch"), ptypeBox,
-    h("div", { class: "velo-row", style: "margin-top:8px" },
-      h("button", { type: "button", class: "btn", onclick: () => bump(-1), "aria-label": "Velocity minus one" }, "−"), veloIn,
-      h("button", { type: "button", class: "btn", onclick: () => bump(1), "aria-label": "Velocity plus one" }, "+")),
-    h("h3", {}, "Location ", h("span", { class: "small muted" }, "(catcher's view, optional)")), zoneBox,
-    h("h3", {}, "Result"), resultBox,
-    h("div", { class: "row", style: "margin-top:12px" },
-      h("button", { type: "button", class: "btn", onclick: undo }, "↶ Undo"),
-      h("button", { type: "button", class: "btn", onclick: addNote }, "✎ Note"),
-      h("a", { class: "btn", href: `#/games/${gameId}` }, "Summary")),
-    h("h3", {}, "Current pitcher"), mini,
-    h("h3", {}, "Recent pitches"), logList);
+    h("div", { class: "chart-layout" },
+      h("div", { class: "chart-input" },
+        situation,
+        h("div", { class: "row", style: "margin-top:10px" }, pitcherIn),
+        h("div", { class: "row", style: "margin-top:8px" }, batterIn, sideSel),
+        h("h3", {}, "Pitch"), ptypeBox,
+        h("div", { class: "velo-row", style: "margin-top:8px" },
+          h("button", { type: "button", class: "btn", onclick: () => bump(-1), "aria-label": "Velocity minus one" }, "−"), veloIn,
+          h("button", { type: "button", class: "btn", onclick: () => bump(1), "aria-label": "Velocity plus one" }, "+")),
+        h("h3", {}, "Location ", h("span", { class: "small muted" }, "(catcher's view, optional)")), zoneBox,
+        h("h3", {}, "Result"), resultBox,
+        h("div", { class: "row", style: "margin-top:12px" },
+          h("button", { type: "button", class: "btn", onclick: undo }, "↶ Undo"),
+          h("button", { type: "button", class: "btn", onclick: addNote }, "✎ Note"),
+          h("a", { class: "btn", href: `#/games/${gameId}` }, "Summary"))),
+      h("div", { class: "chart-side" },
+        h("div", { class: "card small shortcuts desktop-only" },
+          h("strong", {}, "Keyboard: "),
+          kbd("1–8", "pitch type"), kbd("V", "velo"), kbd("B", "ball"), kbd("C", "called"), kbd("S", "swinging"),
+          kbd("F", "foul"), kbd("X", "in play"), kbd("H", "HBP"), kbd("Z", "undo"), kbd("N", "note")),
+        h("h3", {}, "Current pitcher"), mini,
+        h("h3", {}, "Recent pitches"), logList)));
   redraw();
+}
+
+// ---------------------------------------------------------------- accounts
+
+let ME = null;
+
+function setMe(user) {
+  ME = user;
+  if (user) store.set("me", user); else store.set("me", null);
+  document.body.classList.toggle("signed-out", !user);
+  document.body.classList.toggle("role-viewer", !!user && user.role === "viewer");
+  document.getElementById("account-name").textContent = user ? user.name : "";
+}
+
+function signInRequired() {
+  if (!ME) return;
+  setMe(null);
+  toast("Please sign in again");
+  showAuth();
+}
+
+async function showAuth() {
+  setMe(null);
+  $back.hidden = true;
+  let needsSetup = false;
+  try { needsSetup = (await api("/auth/status")).needs_setup; } catch { /* offline: show sign-in */ }
+  setTitle(needsSetup ? "Set up DiamondIQ" : "Sign in");
+  const pw = (name, auto) => input(name, { type: "password", required: true, minlength: 10, autocomplete: auto });
+  const form = needsSetup
+    ? h("form", { class: "stack auth-card card" },
+        h("p", { class: "ink2", style: "margin-top:0" }, "Create the first admin account. The setup code is printed in the server's log (the terminal or your host's log page) when it starts."),
+        field("Setup code", input("setup_code", { required: true, autocomplete: "off", placeholder: "XXXX-XXXX-XXXX" })),
+        field("Your name", input("name", { required: true, autocomplete: "name" })),
+        field("Email", input("email", { type: "email", required: true, autocomplete: "email" })),
+        field("Password (10+ characters)", pw("password", "new-password")),
+        h("button", { class: "btn primary block", type: "submit" }, "Create admin account"))
+    : h("form", { class: "stack auth-card card" },
+        field("Email", input("email", { type: "email", required: true, autocomplete: "username" })),
+        field("Password", pw("password", "current-password")),
+        h("button", { class: "btn primary block", type: "submit" }, "Sign in"),
+        h("p", { class: "small muted", style: "margin-bottom:0" }, "Forgot your password? Ask an admin to reset it."));
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = formData(form);
+    try {
+      const r = await busy(form.querySelector("button[type=submit]"), api(needsSetup ? "/auth/setup" : "/auth/login", { method: "POST", json: body }));
+      setMe(needsSetup ? r : r.user);
+      toast(`Welcome, ${ME.name}`);
+      queue.flush();
+      route();
+    } catch (err) { toast(err.message, 5000); }
+  });
+  fill($view, h("div", { class: "auth-wrap" }, h("img", { src: "icon.svg", alt: "", width: 64, height: 64 }), h("h2", {}, "DiamondIQ"), form));
+}
+
+async function accountView() {
+  setTitle("Account");
+  const pwForm = h("form", { class: "stack" },
+    field("Current password", input("current_password", { type: "password", required: true, autocomplete: "current-password" })),
+    field("New password (10+ characters)", input("new_password", { type: "password", required: true, minlength: 10, autocomplete: "new-password" })),
+    h("button", { class: "btn block", type: "submit" }, "Change password"));
+  pwForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      await busy(pwForm.querySelector("button"), api("/auth/me/password", { method: "POST", json: formData(pwForm) }));
+      pwForm.reset();
+      toast("Password changed. Other devices were signed out.");
+    } catch (err) { toast(err.message, 5000); }
+  });
+  const users = h("div");
+  fill($view,
+    h("div", { class: "card" },
+      h("div", { class: "name" }, ME.name), h("div", { class: "ink2" }, ME.email),
+      h("span", { class: "badge" }, { admin: "Admin", scout: "Scout", viewer: "Viewer (read-only)" }[ME.role])),
+    h("h2", {}, "Password"), h("div", { class: "card" }, pwForm),
+    h("button", { class: "btn block", style: "margin-top:12px", onclick: async () => {
+      if (queue.items().length && !confirm("Some charted pitches haven't synced yet. They stay on this device and sync after you sign back in. Sign out anyway?")) return;
+      try { await api("/auth/logout", { method: "POST" }); } catch { /* offline: still clear locally */ }
+      setMe(null);
+      showAuth();
+    } }, "Sign out"),
+    ME.role === "admin" ? [h("h2", {}, "Users"), users] : null);
+  if (ME.role === "admin") drawUsers(users);
+}
+
+async function drawUsers(el) {
+  const list = await api("/auth/users");
+  const roleLabel = { admin: "Admin", scout: "Scout", viewer: "Viewer" };
+  fill(el,
+    h("p", { class: "small ink2" }, "Admins manage users. Scouts can add and edit everything. Viewers can only look."),
+    h("button", { class: "btn primary block", onclick: () => userSheet(null, () => drawUsers(el)) }, "+ Add user"),
+    h("ul", { class: "list" }, list.map((u) => h("li", {}, h("button", { class: "list-item", style: "width:100%;text-align:left;cursor:pointer", onclick: () => userSheet(u, () => drawUsers(el)) },
+      h("div", { class: "grow" }, h("div", { class: "name" }, u.name, u.is_active ? "" : " (disabled)"), h("div", { class: "small ink2" }, u.email)),
+      h("span", { class: "badge" }, roleLabel[u.role]), h("span", { class: "chev", "aria-hidden": "true" }, "›"))))));
+}
+
+function userSheet(u, done) {
+  const isSelf = u && u.id === ME.id;
+  const form = h("form", { class: "stack" },
+    u ? h("p", { class: "ink2", style: "margin:0" }, u.email) : field("Email", input("email", { type: "email", required: true })),
+    field("Name", input("name", { required: true, value: u ? u.name : "" })),
+    field("Role", select("role", [["scout", "Scout (add & edit)"], ["viewer", "Viewer (read-only)"], ["admin", "Admin (everything + users)"]], u ? u.role : "scout", { disabled: isSelf || null })),
+    field(u ? "New password (leave blank to keep)" : "Temporary password (10+ characters)", input("password", { type: "password", minlength: 10, required: !u || null, autocomplete: "new-password" })),
+    u && !isSelf ? h("label", { class: "row small" }, h("input", { type: "checkbox", name: "is_active", checked: u.is_active || null, style: "flex:none;width:20px;height:20px" }), h("span", {}, "Account active (unchecking signs them out)")) : null,
+    h("button", { class: "btn primary block", type: "submit" }, u ? "Save" : "Create user"),
+    !u ? h("p", { class: "small muted" }, "Share the temporary password with them privately; they can change it under Account.") : null);
+  const close = openSheet(u ? "Edit user" : "Add user", form);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = formData(form);
+    try {
+      await busy(form.querySelector("button[type=submit]"), u
+        ? api(`/auth/users/${u.id}`, { method: "PATCH", json: body })
+        : api("/auth/users", { method: "POST", json: body }));
+      close(); toast("Saved"); done();
+    } catch (err) { toast(err.message, 5000); }
+  });
 }
 
 // ---------------------------------------------------------------- boot
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 renderSync();
-route();
+(async () => {
+  try { setMe(await api("/auth/me")); } catch (e) {
+    // Offline with a still-valid session cookie: let the scout keep charting from cached data.
+    if (!(e instanceof ApiError)) setMe(store.get("me", null));
+  }
+  if (ME) store.set("me", ME);
+  route();
+})();

@@ -300,3 +300,33 @@ class ProjectionRun(Base):
     model_version: Mapped[str] = mapped_column(String(20))
     inputs: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     result: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class User(Base):
+    """A person who can sign in. Roles: admin (everything + manage users), scout (read/write), viewer (read-only)."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    role: Mapped[str] = mapped_column(String(10), default="scout")
+    password_hash: Mapped[str] = mapped_column(String(300))
+    is_active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    last_login_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AuthSession(Base):
+    """A signed-in browser or API client. Only a hash of the token is stored."""
+
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    expires_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+    user_agent: Mapped[str | None] = mapped_column(String(300))
+
+    user: Mapped[User] = relationship()

@@ -1,0 +1,10 @@
+.git
+**/__pycache__
+*.db
+media/
+models/
+tests/
+samples/
+scripts/
+.pytest_cache
+.ruff_cache

@@ -16,7 +16,10 @@ sys.path.insert(0, str(ROOT))
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from diamondiq import models as m  # noqa: E402
 from diamondiq.api.main import app  # noqa: E402
+from diamondiq.auth import create_user  # noqa: E402
+from diamondiq.db import SessionLocal  # noqa: E402
 from diamondiq.biomechanics.synthetic import synthetic_pitch, synthetic_swing  # noqa: E402
 
 SAMPLES = ROOT / "samples"
@@ -24,6 +27,11 @@ SAMPLES = ROOT / "samples"
 
 def main():
     with TestClient(app) as c:
+        with SessionLocal() as session:
+            if not session.query(m.User).filter_by(email="demo@example.com").first():
+                create_user(session, "demo@example.com", "Demo Admin", "demo password", role="admin")
+        c.post("/auth/login", json={"email": "demo@example.com", "password": "demo password"})
+        print("Demo sign-in: demo@example.com / demo password (local demo database only)")
         rhp = c.post("/players", json={"first_name": "Marco", "last_name": "Reyes", "birth_date": "2005-03-02", "throws": "R", "bats": "R",
                                        "height_in": 74, "weight_lb": 195, "player_type": "pitcher", "primary_position": "P",
                                        "current_level": "NCAA_D1", "current_team": "State U", "external_ids": {"trackman": "1001"}}).json()
